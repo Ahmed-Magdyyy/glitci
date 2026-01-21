@@ -28,6 +28,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       minlength: [6, "Password must be at least 6 characters"],
       select: false,
+      default: null,
+    },
+    tempPassword: {
+      type: String,
+      select: false,
+      default: null,
     },
     role: {
       type: String,
@@ -61,8 +67,12 @@ userSchema.index({ isActive: 1 });
 userSchema.index({ "refreshTokens.expiresAt": 1 });
 
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
-  this.password = await bcrypt.hash(this.password, 12);
+  if (this.isModified("password") && this.password) {
+    this.password = await bcrypt.hash(this.password, 12);
+  }
+  if (this.isModified("tempPassword") && this.tempPassword) {
+    this.tempPassword = await bcrypt.hash(this.tempPassword, 12);
+  }
 });
 
 export const UserModel =

@@ -1,4 +1,3 @@
-// src/modules/auth/auth.controller.js
 import asyncHandler from "express-async-handler";
 import {
   // registerService,
@@ -9,6 +8,7 @@ import {
   forgetPasswordService,
   verifyPasswordResetCodeService,
   resetPasswordService,
+  setInitialPasswordService,
   buildAuthUserResponse,
 } from "./auth.service.js";
 
@@ -50,8 +50,13 @@ function clearRefreshTokenCookie(res) {
 
 // POST /auth/login
 export const login = asyncHandler(async (req, res) => {
-  const { user, accessToken, refreshToken, accessTokenExpires } =
-    await loginService(req.body);
+  const {
+    user,
+    accessToken,
+    refreshToken,
+    accessTokenExpires,
+    mustChangePassword,
+  } = await loginService(req.body);
 
   // Set refresh token in httpOnly cookie
   setRefreshTokenCookie(res, refreshToken);
@@ -61,6 +66,7 @@ export const login = asyncHandler(async (req, res) => {
     data: buildAuthUserResponse(user),
     accessToken,
     accessTokenExpires,
+    mustChangePassword,
   });
 });
 
@@ -115,12 +121,11 @@ export const changePassword = asyncHandler(async (req, res) => {
 
 // POST /auth/forgot-password
 export const forgotPassword = asyncHandler(async (req, res) => {
-  const { resetCode } = await forgetPasswordService(req.body);
+  const { email } = await forgetPasswordService(req.body);
 
   res.status(200).json({
     status: "success",
-    message: "Reset code sent to email",
-    resetCode, // Remove in production
+    message: `Reset code sent to email ${email}`,
   });
 });
 
@@ -141,5 +146,22 @@ export const resetPassword = asyncHandler(async (req, res) => {
   res.status(200).json({
     status: "success",
     message: "Password reset successfully",
+  });
+});
+
+// PATCH /auth/set-initial-password
+export const setInitialPassword = asyncHandler(async (req, res) => {
+  const { newPassword } = req.body;
+
+  await setInitialPasswordService({
+    userId: req.user._id,
+    newPassword,
+  });
+
+  clearRefreshTokenCookie(res);
+
+  res.status(200).json({
+    status: "success",
+    message: "Password set successfully. Please login again.",
   });
 });

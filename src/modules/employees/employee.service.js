@@ -1,4 +1,4 @@
-// src/modules/employees/employee.service.js
+import crypto from "crypto";
 import mongoose from "mongoose";
 import { EmployeeModel } from "./employee.model.js";
 import { UserModel } from "../users/user.model.js";
@@ -14,6 +14,8 @@ import {
 } from "../../shared/utils/apiFeatures.js";
 import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
 import { EMPLOYMENT_TYPE } from "../../shared/constants/employee.enums.js";
+import sendEmail from "../../shared/Email/sendEmails.js";
+import { accountCreatedEmailHTML } from "../../shared/Email/emailHtml.js";
 
 // Helper to build employee response
 export function buildEmployeeResponse(employee) {
@@ -149,16 +151,8 @@ export async function getEmployeeByIdService(id) {
 
 // Create employee (creates User + Employee in transaction)
 export async function createEmployeeService(payload) {
-  const {
-    name,
-    email,
-    password,
-    phone,
-    department,
-    position,
-    skills,
-    employmentType,
-  } = payload;
+  const { name, email, phone, department, position, skills, employmentType } =
+    payload;
 
   // Normalize employmentType (case-insensitive)
   const normalizedEmploymentType =
@@ -210,6 +204,9 @@ export async function createEmployeeService(payload) {
     throw new ApiError("User with this email already exists", 409);
   }
 
+  // Generate 12-char temporary password
+  const tempPassword = crypto.randomBytes(6).toString("hex");
+
   // Start transaction
   const session = await mongoose.startSession();
 
@@ -222,7 +219,8 @@ export async function createEmployeeService(payload) {
         {
           name,
           email: email.toLowerCase(),
-          password,
+          password: null,
+          tempPassword,
           phone: phone || null,
           role: USER_ROLES.EMPLOYEE,
           isActive: true,
@@ -244,6 +242,21 @@ export async function createEmployeeService(payload) {
       ],
       { session },
     );
+
+    const firstName = (user.name || "").split(" ")[0] || "there";
+    const capitalizedName =
+      firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+
+    // Send welcome email with credentials (non-blocking)
+    sendEmail({
+      email: user.email,
+      subject: "Welcome to Glitci - Your Account Credentials",
+      message: accountCreatedEmailHTML(
+        capitalizedName,
+        user.email,
+        tempPassword,
+      ),
+    }).catch((err) => console.error("Failed to send welcome email:", err));
 
     // Commit transaction
     await session.commitTransaction();

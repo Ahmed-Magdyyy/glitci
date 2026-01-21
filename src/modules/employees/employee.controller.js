@@ -24,7 +24,12 @@ export const getEmployee = asyncHandler(async (req, res) => {
 // POST /employees - Create employee
 export const createEmployee = asyncHandler(async (req, res) => {
   const { id } = await createEmployeeService(req.body);
-  res.status(201).json({ message: "Employee created successfully", id });
+  res
+    .status(201)
+    .json({
+      message: "Employee created successfully, and email sent with credentials",
+      id,
+    });
 });
 
 // PATCH /employees/:id - Update employee

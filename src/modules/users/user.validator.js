@@ -20,12 +20,6 @@ export const createUserValidator = [
 
   check("phone").optional().isMobilePhone().withMessage("Invalid phone number"),
 
-  check("password")
-    .notEmpty()
-    .withMessage("Password is required")
-    .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters"),
-
   check("role")
     .optional()
     .isIn([USER_ROLES.EMPLOYEE, USER_ROLES.MANAGER, USER_ROLES.MODERATOR])

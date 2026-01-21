@@ -92,3 +92,13 @@ export const resetPasswordValidator = [
 
   validatorMiddleware,
 ];
+
+export const setInitialPasswordValidator = [
+  check("newPassword")
+    .notEmpty()
+    .withMessage("New password is required")
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters"),
+
+  validatorMiddleware,
+];

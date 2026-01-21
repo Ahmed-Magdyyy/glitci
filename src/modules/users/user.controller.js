@@ -30,7 +30,12 @@ export const getUser = asyncHandler(async (req, res) => {
 // POST /users
 export const createUser = asyncHandler(async (req, res) => {
   const user = await createUserService(req.body);
-  res.status(201).json({ message: "User created successfully", data: user });
+  res
+    .status(201)
+    .json({
+      message: "User created successfully, and email sent with credentials",
+      data: user,
+    });
 });
 
 // PATCH /users/:id

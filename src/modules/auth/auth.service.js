@@ -6,11 +6,11 @@ import {
   createAccessToken,
   createRefreshToken,
 } from "../../shared/utils/createToken.js";
-import {
-  validateImageFile,
-  uploadImageToCloudinary,
-  deleteImageFromCloudinary,
-} from "../../shared/utils/imageUpload.js";
+// import {
+//   validateImageFile,
+//   uploadImageToCloudinary,
+//   deleteImageFromCloudinary,
+// } from "../../shared/utils/imageUpload.js";
 import sendEmail from "../../shared/Email/sendEmails.js";
 import { forgetPasswordEmailHTML } from "../../shared/Email/emailHtml.js";
 
@@ -125,10 +125,31 @@ export async function loginService({ email, password }) {
   }
 
   const user = await UserModel.findOne({ email: email.toLowerCase() }).select(
-    "+password",
+    "+password +tempPassword",
   );
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
+  if (!user) {
+    throw new ApiError("Incorrect email or password", 401);
+  }
+
+  // Check if this is a first-time login (password is null, use tempPassword)
+  let mustChangePassword = false;
+
+  if (!user.password && user.tempPassword) {
+    // First-time login: validate against tempPassword
+    const isTempMatch = await bcrypt.compare(password, user.tempPassword);
+    if (!isTempMatch) {
+      throw new ApiError("Incorrect email or password", 401);
+    }
+    mustChangePassword = true;
+  } else if (user.password) {
+    // Normal login: validate against password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new ApiError("Incorrect email or password", 401);
+    }
+  } else {
+    // No password set at all
     throw new ApiError("Incorrect email or password", 401);
   }
 
@@ -144,6 +165,7 @@ export async function loginService({ email, password }) {
     accessToken,
     refreshToken,
     accessTokenExpires,
+    mustChangePassword,
   };
 }
 
@@ -258,7 +280,7 @@ export async function forgetPasswordService({ email }) {
     await user.save();
     throw new ApiError("Sending email failed", 500);
   }
-  return { email: user.email, resetCode };
+  return { email: user.email };
 }
 
 // Verify password reset code
@@ -305,4 +327,27 @@ export async function resetPasswordService({ email, newPassword }) {
   await user.save();
 
   return { message: "Password reset successfully" };
+}
+
+// Set initial password (for first-time login with temp password)
+export async function setInitialPasswordService({ userId, newPassword }) {
+  const user = await UserModel.findById(userId).select("+tempPassword");
+
+  if (!user) {
+    throw new ApiError("User not found", 404);
+  }
+
+  if (!user.tempPassword) {
+    throw new ApiError("Password has already been set", 400);
+  }
+
+  // Set permanent password and clear temp
+  user.password = newPassword;
+  user.tempPassword = null;
+  user.passwordChangedAt = new Date();
+  user.refreshTokens = []; // Invalidate all sessions
+
+  await user.save();
+
+  return { message: "Password set successfully. Please login again." };
 }

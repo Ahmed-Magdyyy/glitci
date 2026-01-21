@@ -8,6 +8,7 @@ import {
   forgotPassword,
   verifyResetCode,
   resetPassword,
+  setInitialPassword,
 } from "./auth.controller.js";
 import {
   // registerValidator,
@@ -16,6 +17,7 @@ import {
   forgotPasswordValidator,
   verifyResetCodeValidator,
   resetPasswordValidator,
+  setInitialPasswordValidator,
 } from "./auth.validator.js";
 import { protect } from "./auth.middleware.js";
 import { uploadSingleImage } from "../../shared/middlewares/uploadMiddleware.js";
@@ -37,6 +39,12 @@ router.patch(
   protect,
   changePasswordValidator,
   changePassword,
+);
+router.patch(
+  "/set-initial-password",
+  protect,
+  setInitialPasswordValidator,
+  setInitialPassword,
 );
 
 export default router;

@@ -1,5 +1,4 @@
-// src/modules/users/user.service.js
-import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { UserModel } from "./user.model.js";
 import { EmployeeModel } from "../employees/employee.model.js";
 import { SkillModel } from "../skills/skill.model.js";
@@ -15,6 +14,8 @@ import {
   uploadImageToCloudinary,
   deleteImageFromCloudinary,
 } from "../../shared/utils/imageUpload.js";
+import sendEmail from "../../shared/Email/sendEmails.js";
+import { accountCreatedEmailHTML } from "../../shared/Email/emailHtml.js";
 
 const DEFAULT_USER_AVATAR_URL =
   "https://res.cloudinary.com/dx5n4ekk2/image/upload/v1767069108/petyard/users/user_default_avatar_2.svg";
@@ -103,13 +104,10 @@ export async function getUserByIdService(id) {
 }
 
 export async function createUserService(payload) {
-  const { name, email, phone, password, role } = payload;
+  const { name, email, phone, role } = payload;
 
-  if (!name || !email || !password || !role) {
-    throw new ApiError(
-      "Missing required fields from (name, email, password, role)",
-      400,
-    );
+  if (!name || !email || !role) {
+    throw new ApiError("Missing required fields from (name, email, role)", 400);
   }
 
   // Block ADMIN creation
@@ -130,16 +128,56 @@ export async function createUserService(payload) {
     throw new ApiError("User already exists with this email", 409);
   }
 
-  const user = await UserModel.create({
-    name,
-    email: email.toLowerCase(),
-    phone: phone || null,
-    password,
-    role: role,
-    isActive: true,
-  });
+  // Generate 12-char temporary password
+  const tempPassword = crypto.randomBytes(6).toString("hex");
 
-  return buildUserResponse(user);
+  // Start transaction
+  const mongoose = (await import("mongoose")).default;
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const [user] = await UserModel.create(
+      [
+        {
+          name,
+          email: email.toLowerCase(),
+          phone: phone || null,
+          password: null,
+          tempPassword,
+          role: role,
+          isActive: true,
+        },
+      ],
+      { session },
+    );
+
+    const firstName = (user.name || "").split(" ")[0] || "there";
+    const capitalizedName =
+      firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+
+    // Send welcome email with credentials (blocking - rollback if fails)
+    await sendEmail({
+      email: user.email,
+      subject: "Welcome to Glitci - Your Account Credentials",
+      message: accountCreatedEmailHTML(
+        capitalizedName,
+        user.email,
+        tempPassword,
+      ).catch((err) => console.error("Failed to send welcome email:", err)),
+    });
+
+    // Commit transaction
+    await session.commitTransaction();
+
+    return buildUserResponse(user);
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
 }
 
 export async function updateUserService(id, payload) {
