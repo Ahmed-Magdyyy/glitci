@@ -1,39 +1,34 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
+// Initialize Resend lazily to ensure env vars are loaded
+let resend = null;
+
+const getResendClient = () => {
+  if (!resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY environment variable is not set");
+    }
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+};
 
 const sendEmail = async (options) => {
-  // creating the transporter ( service that will send email like gmail)
-  const transporter = nodemailer.createTransport({
-    // service: "hostinger",
-    name: process.env.EMAIL_HOST,
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT, // if secure true => port = 465 || if secure false => port = 587
-    secure: true,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
+  const client = getResendClient();
 
-  // define email options ( from , to , subject , email content )
-  const emailOptions = {
+  const { data, error } = await client.emails.send({
     from: "Glitci <operations@glitci.com>",
     to: options.email,
     subject: options.subject,
     html: options.message,
-  };
-
-  transporter.verify(function (error, success) {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log("Server is ready to take our messages");
-    }
   });
 
-  await transporter.sendMail(emailOptions);
+  if (error) {
+    console.error("Resend error:", error);
+    throw new Error(`Failed to send email: ${error.message}`);
+  }
+
+  return data;
 };
 
 export default sendEmail;

@@ -165,7 +165,7 @@ export async function createUserService(payload) {
         capitalizedName,
         user.email,
         tempPassword,
-      ).catch((err) => console.error("Failed to send welcome email:", err)),
+      ),
     });
 
     // Commit transaction

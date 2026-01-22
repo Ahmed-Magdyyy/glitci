@@ -247,8 +247,8 @@ export async function createEmployeeService(payload) {
     const capitalizedName =
       firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 
-    // Send welcome email with credentials (non-blocking)
-    sendEmail({
+    // Send welcome email with credentials (blocking - rollback if fails)
+    await sendEmail({
       email: user.email,
       subject: "Welcome to Glitci - Your Account Credentials",
       message: accountCreatedEmailHTML(
@@ -256,7 +256,7 @@ export async function createEmployeeService(payload) {
         user.email,
         tempPassword,
       ),
-    }).catch((err) => console.error("Failed to send welcome email:", err));
+    });
 
     // Commit transaction
     await session.commitTransaction();
