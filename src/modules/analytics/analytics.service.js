@@ -76,10 +76,14 @@ export async function getOverviewService(
       {
         $group: {
           _id: "$type",
-          // Use converted amount, fallback to raw amount for legacy data
+          // Use converted amount if > 0, fallback to raw amount for legacy data
           total: {
             $sum: {
-              $ifNull: [amountField, "$amount"],
+              $cond: [
+                { $gt: [amountField, 0] },
+                { $round: [amountField, 0] },
+                { $round: ["$amount", 0] },
+              ],
             },
           },
           count: { $sum: 1 },
@@ -124,7 +128,11 @@ export async function getOverviewService(
           },
           total: {
             $sum: {
-              $ifNull: [amountField, "$amount"],
+              $cond: [
+                { $gt: [amountField, 0] },
+                { $round: [amountField, 0] },
+                { $round: ["$amount", 0] },
+              ],
             },
           },
         },
@@ -148,7 +156,11 @@ export async function getOverviewService(
           },
           total: {
             $sum: {
-              $ifNull: [amountField, "$amount"],
+              $cond: [
+                { $gt: [amountField, 0] },
+                { $round: [amountField, 0] },
+                { $round: ["$amount", 0] },
+              ],
             },
           },
         },
@@ -199,17 +211,17 @@ export async function getOverviewService(
     status: p.status,
     startDate: p.startDate,
     endDate: p.endDate,
-    budget: p.budgetConverted?.[userCurrency] || p.budget,
+    budget: Math.round(p.budgetConverted?.[userCurrency] || p.budget),
   }));
 
   return {
     period: { from, to },
     currency: userCurrency,
     financials: {
-      totalRevenue: totalIncome,
-      totalEarning: totalIncome,
-      totalSpending: totalExpenses,
-      netProfit: totalIncome - totalExpenses,
+      totalRevenue: Math.round(totalIncome),
+      totalEarning: Math.round(totalIncome),
+      totalSpending: Math.round(totalExpenses),
+      netProfit: Math.round(totalIncome - totalExpenses),
     },
     charts: {
       growthTrend,
@@ -237,7 +249,7 @@ export async function getStatsService(userCurrency = DEFAULT_CURRENCY) {
     ProjectModel.countDocuments({}),
 
     // Active employees (users with isActive = true)
-    EmployeeModel.countDocuments({}).then(async (count) => {
+    EmployeeModel.countDocuments({}).then(async () => {
       const employees = await EmployeeModel.find({})
         .populate("user", "isActive")
         .lean();
@@ -278,7 +290,12 @@ export async function getStatsService(userCurrency = DEFAULT_CURRENCY) {
           name: { $first: "$departmentData.name" },
           spent: {
             $sum: {
-              $ifNull: [amountField, "$amount"],
+              // Use converted amount if > 0, otherwise fall back to raw amount
+              $cond: [
+                { $gt: [amountField, 0] },
+                { $round: [amountField, 0] },
+                { $round: ["$amount", 0] },
+              ],
             },
           },
         },
@@ -300,11 +317,9 @@ export async function getStatsService(userCurrency = DEFAULT_CURRENCY) {
     ]),
   ]);
 
-  // Get department budgets
-  const departments = await DepartmentModel.find({ isActive: true }).lean();
   const departmentBudgets = {};
 
-  // Estimate budget as sum of project budgets per department (using converted amounts)
+  // Estimate budget as sum of project budgets per department
   const projectsByDept = await ProjectModel.aggregate([
     { $match: { isActive: true } },
     {
@@ -312,7 +327,12 @@ export async function getStatsService(userCurrency = DEFAULT_CURRENCY) {
         _id: "$department",
         totalBudget: {
           $sum: {
-            $ifNull: [budgetField, "$budget"],
+            // Use converted budget if > 0, otherwise fall back to raw budget
+            $cond: [
+              { $gt: [budgetField, 0] },
+              { $round: [budgetField, 0] },
+              { $round: ["$budget", 0] },
+            ],
           },
         },
       },
@@ -327,13 +347,14 @@ export async function getStatsService(userCurrency = DEFAULT_CURRENCY) {
   const departmentProgress = departmentStats
     .filter((d) => d._id)
     .map((d) => {
-      const budget = departmentBudgets[d._id.toString()] || 0;
+      const budget = Math.round(departmentBudgets[d._id.toString()] || 0);
+      const spent = Math.round(d.spent);
       return {
         id: d._id,
         name: d.name || "Unknown",
-        spent: d.spent,
+        spent,
         budget,
-        percent: budget > 0 ? Math.round((d.spent / budget) * 100) : 0,
+        percent: budget > 0 ? Math.round((spent / budget) * 100) : 0,
       };
     });
 
