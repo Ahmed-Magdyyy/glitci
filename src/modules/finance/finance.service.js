@@ -126,10 +126,11 @@ export async function getProjectFinancialsService(projectId) {
   const totalPaidToEmployees = employeePayments[0]?.totalPaid || 0;
   const otherExpenses = totalExpenses - totalPaidToEmployees;
 
-  // Format transaction breakdowns
+  // Format transaction breakdowns - show ORIGINAL currency for each transaction
   const formattedClientTransactions = clientTransactions.map((t) => ({
     id: t._id,
     amount: t.amount,
+    currency: t.currency || "EGP", // Show original currency
     date: t.date,
     description: t.description,
     category: t.category,
@@ -145,6 +146,7 @@ export async function getProjectFinancialsService(projectId) {
   const formattedEmployeeTransactions = employeeTransactions.map((t) => ({
     id: t._id,
     amount: t.amount,
+    currency: t.currency || "EGP", // Show original currency
     date: t.date,
     description: t.description,
     category: t.category,
@@ -162,11 +164,13 @@ export async function getProjectFinancialsService(projectId) {
       _id: project._id,
       name: project.name,
       budget: project.budget,
+      currency: project.currency || "EGP", // Show project's original currency
       client: project.client,
       status: project.status,
     },
     financials: {
       budget: project.budget,
+      budgetCurrency: project.currency || "EGP",
       totalEmployeesCompensation: totalCompensation,
       employeesCount: memberCount,
 
@@ -237,7 +241,7 @@ export async function getProjectEmployeeBreakdownService(projectId) {
     },
   ]);
 
-  // Build breakdown
+  // Build breakdown - show original currency for each member
   const breakdown = members.map((member) => {
     const payment = employeePayments.find(
       (p) => p._id.toString() === member.employee._id.toString(),
@@ -252,6 +256,7 @@ export async function getProjectEmployeeBreakdownService(projectId) {
         position: member.employee.position?.name,
       },
       compensation: member.compensation,
+      currency: member.currency || "EGP", // Show original currency
       paid,
       remaining: member.compensation - paid,
       paymentCount: payment?.paymentCount || 0,
@@ -261,6 +266,7 @@ export async function getProjectEmployeeBreakdownService(projectId) {
   return {
     projectId,
     projectName: project.name,
+    projectCurrency: project.currency || "EGP",
     breakdown,
     summary: {
       employeesCount: breakdown.length,
@@ -291,6 +297,19 @@ export async function getClientPaymentHistoryService(projectId) {
     .populate("addedBy", "name")
     .lean();
 
+  // Format payments with original currency
+  const formattedPayments = payments.map((p) => ({
+    id: p._id,
+    amount: p.amount,
+    currency: p.currency || "EGP", // Show original currency
+    date: p.date,
+    description: p.description,
+    paymentMethod: p.paymentMethod,
+    reference: p.reference,
+    status: p.status,
+    addedBy: p.addedBy?.name,
+  }));
+
   const totalCollected = payments.reduce((sum, p) => sum + p.amount, 0);
 
   return {
@@ -298,14 +317,18 @@ export async function getClientPaymentHistoryService(projectId) {
       _id: project._id,
       name: project.name,
       budget: project.budget,
+      currency: project.currency || "EGP", // Show project's original currency
       client: project.client,
     },
-    payments,
+    payments: formattedPayments,
     summary: {
       totalPayments: payments.length,
       totalCollected,
       balanceDue: project.budget - totalCollected,
-      percentagePaid: Math.round((totalCollected / project.budget) * 100),
+      percentagePaid:
+        project.budget > 0
+          ? Math.round((totalCollected / project.budget) * 100)
+          : 0,
     },
   };
 }

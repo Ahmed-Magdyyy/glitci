@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
+import {
+  CURRENCY_VALUES,
+  DEFAULT_CURRENCY,
+} from "../../shared/constants/currency.enums.js";
 
 const DEFAULT_USER_AVATAR_URL =
   "https://res.cloudinary.com/dx5n4ekk2/image/upload/v1767069108/petyard/users/user_default_avatar_2.svg";
@@ -58,6 +62,12 @@ const userSchema = new mongoose.Schema(
     },
 
     isActive: { type: Boolean, default: true },
+
+    currency: {
+      type: String,
+      enum: CURRENCY_VALUES,
+      default: DEFAULT_CURRENCY,
+    },
   },
   { timestamps: true },
 );

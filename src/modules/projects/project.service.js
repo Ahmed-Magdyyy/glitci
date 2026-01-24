@@ -6,6 +6,8 @@ import { ServiceModel } from "../services/service.model.js";
 import { EmployeeModel } from "../employees/employee.model.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { normalizeEnum } from "../../shared/utils/apiFeatures.js";
+import { convertToAllCurrencies } from "../../shared/utils/currencyService.js";
+import { DEFAULT_CURRENCY } from "../../shared/constants/currency.enums.js";
 import {
   PROJECT_STATUS,
   PROJECT_PRIORITY,
@@ -71,18 +73,40 @@ export async function createProjectService(payload, userId) {
 
   // Create project (exclude employees from payload)
   const { employees: _, ...projectData } = payload;
+
+  // Convert budget to all currencies
+  const currency = projectData.currency || DEFAULT_CURRENCY;
+  const budgetConverted = await convertToAllCurrencies(
+    projectData.budget,
+    currency,
+  );
+
   const project = await ProjectModel.create({
     ...projectData,
+    currency,
+    budgetConverted,
     createdBy: userId,
   });
 
   // Batch create project members if any
   if (employees.length > 0) {
-    const memberDocs = employees.map((emp) => ({
-      project: project._id,
-      employee: emp.employee,
-      compensation: emp.compensation,
-    }));
+    // Convert all compensations in parallel
+    const memberDocs = await Promise.all(
+      employees.map(async (emp) => {
+        const empCurrency = emp.currency || DEFAULT_CURRENCY;
+        const compensationConverted = await convertToAllCurrencies(
+          emp.compensation,
+          empCurrency,
+        );
+        return {
+          project: project._id,
+          employee: emp.employee,
+          compensation: emp.compensation,
+          currency: empCurrency,
+          compensationConverted,
+        };
+      }),
+    );
     await ProjectMemberModel.insertMany(memberDocs);
   }
 
@@ -123,7 +147,7 @@ export async function getProjectsService(query) {
   // Run project query and count in parallel (lightweight - only UI-needed fields)
   const [projects, total] = await Promise.all([
     ProjectModel.find(filter)
-      .select("name startDate endDate status priority client")
+      .select("name startDate endDate status priority client currency")
       .populate("client", "name")
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -150,6 +174,7 @@ export async function getProjectsService(query) {
     id: project._id,
     name: project.name,
     client: project.client?.name || null,
+    currency: project.currency,
     startDate: project.startDate,
     endDate: project.endDate,
     status: project.status,
@@ -275,6 +300,19 @@ export async function updateProjectService(id, payload) {
   if (department) updateData.department = department;
   if (services) updateData.services = services;
 
+  // Re-convert budget if budget or currency changed
+  if (updateData.budget !== undefined || updateData.currency !== undefined) {
+    const newCurrency =
+      updateData.currency || project.currency || DEFAULT_CURRENCY;
+    const newBudget =
+      updateData.budget !== undefined ? updateData.budget : project.budget;
+    updateData.currency = newCurrency;
+    updateData.budgetConverted = await convertToAllCurrencies(
+      newBudget,
+      newCurrency,
+    );
+  }
+
   if (Object.keys(updateData).length > 0) {
     await ProjectModel.findByIdAndUpdate(id, updateData, {
       runValidators: true,
@@ -310,13 +348,18 @@ export async function updateProjectService(id, payload) {
       const empId = emp.employee.toString();
       const existingActive = activeMemberMap.get(empId);
       const existingRemoved = removedMemberMap.get(empId);
+      const empCurrency = emp.currency || DEFAULT_CURRENCY;
 
       if (existingActive) {
         // Existing active employee - check if needs update
-        if (existingActive.compensation !== emp.compensation) {
+        if (
+          existingActive.compensation !== emp.compensation ||
+          existingActive.currency !== empCurrency
+        ) {
           toUpdate.push({
             memberId: existingActive._id,
             compensation: emp.compensation,
+            currency: empCurrency,
           });
         }
       } else if (existingRemoved) {
@@ -324,6 +367,7 @@ export async function updateProjectService(id, payload) {
         toReactivate.push({
           memberId: existingRemoved._id,
           compensation: emp.compensation,
+          currency: empCurrency,
         });
       } else {
         // Completely new employee - add
@@ -331,6 +375,7 @@ export async function updateProjectService(id, payload) {
           project: id,
           employee: emp.employee,
           compensation: emp.compensation,
+          currency: empCurrency,
         });
       }
     }
@@ -345,24 +390,46 @@ export async function updateProjectService(id, payload) {
     // Execute operations in parallel
     const operations = [];
 
+    // Add new members with currency conversion
     if (toAdd.length > 0) {
-      operations.push(ProjectMemberModel.insertMany(toAdd));
+      const memberDocsWithConversion = await Promise.all(
+        toAdd.map(async (member) => ({
+          ...member,
+          compensationConverted: await convertToAllCurrencies(
+            member.compensation,
+            member.currency,
+          ),
+        })),
+      );
+      operations.push(ProjectMemberModel.insertMany(memberDocsWithConversion));
     }
 
     // Update compensation for existing members
     for (const update of toUpdate) {
+      const compensationConverted = await convertToAllCurrencies(
+        update.compensation,
+        update.currency,
+      );
       operations.push(
         ProjectMemberModel.findByIdAndUpdate(update.memberId, {
           compensation: update.compensation,
+          currency: update.currency,
+          compensationConverted,
         }),
       );
     }
 
     // Reactivate previously removed members
     for (const reactivate of toReactivate) {
+      const compensationConverted = await convertToAllCurrencies(
+        reactivate.compensation,
+        reactivate.currency,
+      );
       operations.push(
         ProjectMemberModel.findByIdAndUpdate(reactivate.memberId, {
           compensation: reactivate.compensation,
+          currency: reactivate.currency,
+          compensationConverted,
           removedAt: null,
           assignedAt: new Date(),
         }),

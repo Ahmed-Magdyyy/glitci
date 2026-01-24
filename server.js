@@ -38,7 +38,7 @@ app.use(
     },
     credentials: true,
     optionsSuccessStatus: 200,
-  })
+  }),
 );
 
 // Body parsing
@@ -71,7 +71,7 @@ app.use((req, res, next) => {
 app.use(globalError);
 
 const server = app.listen(PORT, () =>
-  console.log(`Glitci API running on port ${PORT}`)
+  console.log(`Glitci API running on port ${PORT}`),
 );
 
 // UnhandledRejections event handler
@@ -84,4 +84,3 @@ process.on("unhandledRejection", (err) => {
 });
 
 export default app;
-

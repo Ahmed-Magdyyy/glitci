@@ -3,6 +3,10 @@ import {
   PROJECT_STATUS,
   PROJECT_PRIORITY,
 } from "../../shared/constants/project.enums.js";
+import {
+  CURRENCY_VALUES,
+  DEFAULT_CURRENCY,
+} from "../../shared/constants/currency.enums.js";
 
 const projectSchema = new mongoose.Schema(
   {
@@ -38,6 +42,19 @@ const projectSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Budget is required"],
       min: [0, "Budget cannot be negative"],
+    },
+    currency: {
+      type: String,
+      enum: CURRENCY_VALUES,
+      required: [true, "Currency is required"],
+      default: DEFAULT_CURRENCY,
+    },
+    budgetConverted: {
+      EGP: { type: Number, default: null },
+      SAR: { type: Number, default: null },
+      AED: { type: Number, default: null },
+      USD: { type: Number, default: null },
+      EUR: { type: Number, default: null },
     },
     startDate: {
       type: Date,

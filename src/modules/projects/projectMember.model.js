@@ -1,4 +1,8 @@
 import mongoose from "mongoose";
+import {
+  CURRENCY_VALUES,
+  DEFAULT_CURRENCY,
+} from "../../shared/constants/currency.enums.js";
 
 const projectMemberSchema = new mongoose.Schema(
   {
@@ -16,6 +20,19 @@ const projectMemberSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Compensation is required"],
       min: [0, "Compensation cannot be negative"],
+    },
+    currency: {
+      type: String,
+      enum: CURRENCY_VALUES,
+      required: [true, "Currency is required"],
+      default: DEFAULT_CURRENCY,
+    },
+    compensationConverted: {
+      EGP: { type: Number, default: null },
+      SAR: { type: Number, default: null },
+      AED: { type: Number, default: null },
+      USD: { type: Number, default: null },
+      EUR: { type: Number, default: null },
     },
     assignedAt: {
       type: Date,

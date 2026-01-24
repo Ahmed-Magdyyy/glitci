@@ -8,6 +8,7 @@ import {
   TRANSACTION_TYPE,
   TRANSACTION_STATUS,
 } from "../../shared/constants/transaction.enums.js";
+import { DEFAULT_CURRENCY } from "../../shared/constants/currency.enums.js";
 
 const { ObjectId } = mongoose.Types;
 
@@ -46,8 +47,15 @@ function parseDateRange(query) {
 
 // ================== OVERVIEW (TIME-BASED DATA) ==================
 
-export async function getOverviewService(query = {}) {
+export async function getOverviewService(
+  query = {},
+  userCurrency = DEFAULT_CURRENCY,
+) {
   const { from, to } = parseDateRange(query);
+
+  // Build the amount field path based on user currency
+  const amountField = `$amountConverted.${userCurrency}`;
+  const budgetField = `$budgetConverted.${userCurrency}`;
 
   const dateFilter = { $gte: from, $lte: to };
 
@@ -57,7 +65,7 @@ export async function getOverviewService(query = {}) {
     monthlyGrowth,
     recentProjects,
   ] = await Promise.all([
-    // Financial summary for the period
+    // Financial summary for the period (using converted amounts)
     TransactionModel.aggregate([
       {
         $match: {
@@ -68,7 +76,12 @@ export async function getOverviewService(query = {}) {
       {
         $group: {
           _id: "$type",
-          total: { $sum: "$amount" },
+          // Use converted amount, fallback to raw amount for legacy data
+          total: {
+            $sum: {
+              $ifNull: [amountField, "$amount"],
+            },
+          },
           count: { $sum: 1 },
         },
       },
@@ -109,7 +122,11 @@ export async function getOverviewService(query = {}) {
             department: "$departmentData.name",
             quarter: { $ceil: { $divide: [{ $month: "$date" }, 3] } },
           },
-          total: { $sum: "$amount" },
+          total: {
+            $sum: {
+              $ifNull: [amountField, "$amount"],
+            },
+          },
         },
       },
       { $sort: { "_id.quarter": 1, "_id.department": 1 } },
@@ -129,7 +146,11 @@ export async function getOverviewService(query = {}) {
             year: { $year: "$date" },
             month: { $month: "$date" },
           },
-          total: { $sum: "$amount" },
+          total: {
+            $sum: {
+              $ifNull: [amountField, "$amount"],
+            },
+          },
         },
       },
       { $sort: { "_id.year": 1, "_id.month": 1 } },
@@ -137,7 +158,7 @@ export async function getOverviewService(query = {}) {
 
     // Recent projects
     ProjectModel.find({ isActive: true })
-      .select("name status startDate endDate")
+      .select("name status startDate endDate budget currency budgetConverted")
       .populate("client", "name companyName")
       .populate("department", "name")
       .sort({ createdAt: -1 })
@@ -169,7 +190,7 @@ export async function getOverviewService(query = {}) {
     value: item.total,
   }));
 
-  // Format recent projects
+  // Format recent projects (with budget in user's currency)
   const formattedProjects = recentProjects.map((p) => ({
     id: p._id,
     name: p.name,
@@ -178,10 +199,12 @@ export async function getOverviewService(query = {}) {
     status: p.status,
     startDate: p.startDate,
     endDate: p.endDate,
+    budget: p.budgetConverted?.[userCurrency] || p.budget,
   }));
 
   return {
     period: { from, to },
+    currency: userCurrency,
     financials: {
       totalRevenue: totalIncome,
       totalEarning: totalIncome,
@@ -198,7 +221,11 @@ export async function getOverviewService(query = {}) {
 
 // ================== STATS (STATIC COUNTS - NO TIME FILTER) ==================
 
-export async function getStatsService() {
+export async function getStatsService(userCurrency = DEFAULT_CURRENCY) {
+  // Build the amount field path based on user currency
+  const amountField = `$amountConverted.${userCurrency}`;
+  const budgetField = `$budgetConverted.${userCurrency}`;
+
   const [
     activeProjects,
     totalProjects,
@@ -249,7 +276,11 @@ export async function getStatsService() {
         $group: {
           _id: "$departmentData._id",
           name: { $first: "$departmentData.name" },
-          spent: { $sum: "$amount" },
+          spent: {
+            $sum: {
+              $ifNull: [amountField, "$amount"],
+            },
+          },
         },
       },
     ]),
@@ -273,13 +304,17 @@ export async function getStatsService() {
   const departments = await DepartmentModel.find({ isActive: true }).lean();
   const departmentBudgets = {};
 
-  // For now, estimate budget as sum of project budgets per department
+  // Estimate budget as sum of project budgets per department (using converted amounts)
   const projectsByDept = await ProjectModel.aggregate([
     { $match: { isActive: true } },
     {
       $group: {
         _id: "$department",
-        totalBudget: { $sum: "$budget" },
+        totalBudget: {
+          $sum: {
+            $ifNull: [budgetField, "$budget"],
+          },
+        },
       },
     },
   ]);
@@ -310,6 +345,7 @@ export async function getStatsService() {
       : 0;
 
   return {
+    currency: userCurrency,
     counts: {
       totalProjects,
       activeProjects,

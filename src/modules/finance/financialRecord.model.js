@@ -1,4 +1,8 @@
 const mongoose = require("mongoose");
+const {
+  CURRENCY_VALUES,
+  DEFAULT_CURRENCY,
+} = require("../../shared/constants/currency.enums.cjs");
 
 const financialRecordSchema = new mongoose.Schema(
   {
@@ -41,6 +45,21 @@ const financialRecordSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
+    },
+
+    currency: {
+      type: String,
+      enum: ["EGP", "SAR", "AED", "USD", "EUR"],
+      required: true,
+      default: "EGP",
+    },
+
+    amountConverted: {
+      EGP: { type: Number, default: null },
+      SAR: { type: Number, default: null },
+      AED: { type: Number, default: null },
+      USD: { type: Number, default: null },
+      EUR: { type: Number, default: null },
     },
 
     description: {

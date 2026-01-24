@@ -5,6 +5,10 @@ import {
   TRANSACTION_STATUS,
   PAYMENT_METHOD,
 } from "../../shared/constants/transaction.enums.js";
+import {
+  CURRENCY_VALUES,
+  DEFAULT_CURRENCY,
+} from "../../shared/constants/currency.enums.js";
 
 const transactionSchema = new mongoose.Schema(
   {
@@ -35,6 +39,19 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Amount is required"],
       min: [0, "Amount cannot be negative"],
+    },
+    currency: {
+      type: String,
+      enum: CURRENCY_VALUES,
+      required: [true, "Currency is required"],
+      default: DEFAULT_CURRENCY,
+    },
+    amountConverted: {
+      EGP: { type: Number, default: null },
+      SAR: { type: Number, default: null },
+      AED: { type: Number, default: null },
+      USD: { type: Number, default: null },
+      EUR: { type: Number, default: null },
     },
     description: {
       type: String,

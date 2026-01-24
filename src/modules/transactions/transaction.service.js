@@ -5,6 +5,8 @@ import { ClientModel } from "../clients/client.model.js";
 import { EmployeeModel } from "../employees/employee.model.js";
 import { ApiError } from "../../shared/utils/ApiError.js";
 import { normalizeEnum } from "../../shared/utils/apiFeatures.js";
+import { convertToAllCurrencies } from "../../shared/utils/currencyService.js";
+import { DEFAULT_CURRENCY } from "../../shared/constants/currency.enums.js";
 import {
   TRANSACTION_TYPE,
   TRANSACTION_CATEGORY,
@@ -86,8 +88,17 @@ export async function createTransactionService(payload, userId) {
     throw new ApiError("Invalid category for expense transaction", 400);
   }
 
+  // Convert amount to all currencies
+  const currency = payload.currency || DEFAULT_CURRENCY;
+  const amountConverted = await convertToAllCurrencies(
+    payload.amount,
+    currency,
+  );
+
   const transaction = await TransactionModel.create({
     ...payload,
+    currency,
+    amountConverted,
     addedBy: userId,
   });
 
@@ -197,7 +208,21 @@ export async function updateTransactionService(id, payload) {
     );
   }
 
-  await TransactionModel.findByIdAndUpdate(id, payload, {
+  // Re-convert amount if amount or currency changed
+  const updateData = { ...payload };
+  if (payload.amount !== undefined || payload.currency !== undefined) {
+    const newCurrency =
+      payload.currency || transaction.currency || DEFAULT_CURRENCY;
+    const newAmount =
+      payload.amount !== undefined ? payload.amount : transaction.amount;
+    updateData.currency = newCurrency;
+    updateData.amountConverted = await convertToAllCurrencies(
+      newAmount,
+      newCurrency,
+    );
+  }
+
+  await TransactionModel.findByIdAndUpdate(id, updateData, {
     runValidators: true,
   });
 
@@ -248,12 +273,18 @@ export async function createClientPaymentService(payload, userId) {
     throw new ApiError("Client does not match project client", 400);
   }
 
+  // Convert amount to all currencies
+  const currency = payload.currency || DEFAULT_CURRENCY;
+  const amountConverted = await convertToAllCurrencies(amount, currency);
+
   const transaction = await TransactionModel.create({
     type: TRANSACTION_TYPE.INCOME,
     category: TRANSACTION_CATEGORY.CLIENT_PAYMENT,
     project,
     client,
     amount,
+    currency,
+    amountConverted,
     description: description || `Payment for project: ${projectDoc.name}`,
     date: date || new Date(),
     paymentMethod,
@@ -299,12 +330,18 @@ export async function createEmployeePaymentService(payload, userId) {
     }
   }
 
+  // Convert amount to all currencies
+  const currency = payload.currency || DEFAULT_CURRENCY;
+  const amountConverted = await convertToAllCurrencies(amount, currency);
+
   const transaction = await TransactionModel.create({
     type: TRANSACTION_TYPE.EXPENSE,
     category,
     project,
     employee,
     amount,
+    currency,
+    amountConverted,
     description: description || `Payment to ${employeeDoc.user.name}`,
     date: date || new Date(),
     paymentMethod,
@@ -333,11 +370,17 @@ export async function createExpenseService(payload, userId) {
     }
   }
 
+  // Convert amount to all currencies
+  const currency = payload.currency || DEFAULT_CURRENCY;
+  const amountConverted = await convertToAllCurrencies(amount, currency);
+
   const transaction = await TransactionModel.create({
     type: TRANSACTION_TYPE.EXPENSE,
     category,
     project,
     amount,
+    currency,
+    amountConverted,
     description,
     date: date || new Date(),
     paymentMethod,
