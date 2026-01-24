@@ -18,7 +18,6 @@ export function currencyMiddleware(req, res, next) {
   // Priority: header > query > user preference > default
   let currency = req.headers["x-currency"] || req.query.currency;
 
-  console.log("currencyMiddleware from 1", currency);
   // Validate if provided
   if (currency) {
     currency = currency.toUpperCase();
@@ -27,13 +26,10 @@ export function currencyMiddleware(req, res, next) {
     }
   }
 
-  console.log("req.user ", req.user);
   // Fallback to user's preference
   if (!currency && req.user?.currency) {
     currency = req.user.currency;
   }
-
-  console.log("currencyMiddleware from 3", currency);
 
   // Final fallback to default
   req.userCurrency = currency || DEFAULT_CURRENCY;
