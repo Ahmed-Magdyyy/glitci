@@ -229,6 +229,7 @@ export async function getProjectByIdService(id) {
     position: member.employee?.position?.name || null,
     employmentType: member.employee?.employmentType || null,
     compensation: member.compensation,
+    currency: member.currency,
     assignedAt: member.assignedAt,
   }));
 
