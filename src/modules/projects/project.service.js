@@ -195,7 +195,7 @@ export async function getProjectByIdService(id) {
   // Run both queries in parallel
   const [project, members] = await Promise.all([
     ProjectModel.findById(id)
-      .select("-__v")
+      .select("-__v -budgetConverted")
       .populate("client", "name companyName email phones")
       .populate("department", "name")
       .populate("services", "name description")
