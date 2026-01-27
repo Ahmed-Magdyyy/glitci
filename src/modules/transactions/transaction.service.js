@@ -260,7 +260,7 @@ export async function createClientPaymentService(payload, userId) {
     ClientModel.findById(client),
   ]);
 
-  if (!projectDoc || !projectDoc.isActive) {
+  if (!projectDoc) {
     throw new ApiError("Project not found or inactive", 400);
   }
 
@@ -315,7 +315,7 @@ export async function createEmployeePaymentService(payload, userId) {
   // Validate project if provided
   if (project) {
     const projectDoc = await ProjectModel.findById(project);
-    if (!projectDoc || !projectDoc.isActive) {
+    if (!projectDoc) {
       throw new ApiError("Project not found or inactive", 400);
     }
 
@@ -365,7 +365,7 @@ export async function createExpenseService(payload, userId) {
   // Validate project if provided
   if (project) {
     const projectDoc = await ProjectModel.findById(project);
-    if (!projectDoc || !projectDoc.isActive) {
+    if (!projectDoc) {
       throw new ApiError("Project not found or inactive", 400);
     }
   }

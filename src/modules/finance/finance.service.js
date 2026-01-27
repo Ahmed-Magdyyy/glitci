@@ -18,7 +18,7 @@ export async function getProjectFinancialsService(projectId) {
     .populate("client", "name companyName")
     .lean();
 
-  if (!project || !project.isActive) {
+  if (!project) {
     throw new ApiError("Project not found", 404);
   }
 
@@ -199,7 +199,7 @@ export async function getProjectFinancialsService(projectId) {
 
 export async function getProjectEmployeeBreakdownService(projectId) {
   const project = await ProjectModel.findById(projectId);
-  if (!project || !project.isActive) {
+  if (!project) {
     throw new ApiError("Project not found", 404);
   }
 
@@ -284,7 +284,7 @@ export async function getClientPaymentHistoryService(projectId) {
     .populate("client", "name companyName")
     .lean();
 
-  if (!project || !project.isActive) {
+  if (!project) {
     throw new ApiError("Project not found", 404);
   }
 
