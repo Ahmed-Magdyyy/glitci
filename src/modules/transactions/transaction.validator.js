@@ -5,6 +5,7 @@ import {
   TRANSACTION_STATUS,
   PAYMENT_METHOD,
 } from "../../shared/constants/transaction.enums.js";
+import { CURRENCY_VALUES } from "../../shared/constants/currency.enums.js";
 
 export const createTransactionValidator = [
   body("type")
@@ -34,6 +35,12 @@ export const createTransactionValidator = [
     .withMessage("Amount is required")
     .isFloat({ min: 0 })
     .withMessage("Amount must be a positive number"),
+
+  body("currency")
+    .notEmpty()
+    .withMessage("Currency is required")
+    .isIn(CURRENCY_VALUES)
+    .withMessage(`Currency must be one of: ${CURRENCY_VALUES.join(", ")}`),
 
   body("description")
     .optional()
@@ -95,6 +102,11 @@ export const updateTransactionValidator = [
     .optional()
     .isFloat({ min: 0 })
     .withMessage("Amount must be a positive number"),
+
+  body("currency")
+    .optional()
+    .isIn(CURRENCY_VALUES)
+    .withMessage(`Currency must be one of: ${CURRENCY_VALUES.join(", ")}`),
 
   body("description")
     .optional()
@@ -202,6 +214,12 @@ export const clientPaymentValidator = [
     .isFloat({ min: 0 })
     .withMessage("Amount must be a positive number"),
 
+  body("currency")
+    .notEmpty()
+    .withMessage("Currency is required")
+    .isIn(CURRENCY_VALUES)
+    .withMessage(`Currency must be one of: ${CURRENCY_VALUES.join(", ")}`),
+
   body("description").optional().isLength({ max: 500 }).trim(),
 
   body("date").optional().isISO8601().withMessage("Invalid date format"),
@@ -225,6 +243,12 @@ export const employeePaymentValidator = [
     .withMessage("Amount is required")
     .isFloat({ min: 0 })
     .withMessage("Amount must be a positive number"),
+
+  body("currency")
+    .notEmpty()
+    .withMessage("Currency is required")
+    .isIn(CURRENCY_VALUES)
+    .withMessage(`Currency must be one of: ${CURRENCY_VALUES.join(", ")}`),
 
   body("category")
     .optional()
@@ -266,6 +290,12 @@ export const expenseValidator = [
     .withMessage("Amount is required")
     .isFloat({ min: 0 })
     .withMessage("Amount must be a positive number"),
+
+  body("currency")
+    .notEmpty()
+    .withMessage("Currency is required")
+    .isIn(CURRENCY_VALUES)
+    .withMessage(`Currency must be one of: ${CURRENCY_VALUES.join(", ")}`),
 
   body("description")
     .notEmpty()
