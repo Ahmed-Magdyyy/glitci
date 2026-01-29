@@ -29,7 +29,7 @@ app.use(
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
       const allowedOrigins = [
-        "https://glitciapp.vercel.app",
+        "https://glitci-app.vercel.app",
         "http://localhost:3000",
         "http://localhost:3001",
       ];
