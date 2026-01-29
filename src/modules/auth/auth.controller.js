@@ -18,7 +18,7 @@ const refreshTokenCookieOptions = {
   secure: process.env.NODE_ENV === "production",
   // sameSite: "strict",
   sameSite: "none",
-  secure: true,
+  // secure: true,
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
 };
 
@@ -34,7 +34,7 @@ function clearRefreshTokenCookie(res) {
     secure: process.env.NODE_ENV === "production",
     // sameSite: "strict",
     sameSite: "none",
-    secure: true,
+    // secure: true,
   });
 }
 
