@@ -195,7 +195,7 @@ export async function getProjectFinancialsService(projectId) {
   };
 }
 
-// ================== EMPLOYEE BREAKDOWN ==================
+// ================== EMPLOYEE PAYMENTS BREAKDOWN ==================
 
 export async function getProjectEmployeeBreakdownService(projectId) {
   const project = await ProjectModel.findById(projectId);
@@ -217,36 +217,47 @@ export async function getProjectEmployeeBreakdownService(projectId) {
     })
     .lean();
 
-  // Get payments per employee
-  const employeePayments = await TransactionModel.aggregate([
-    {
-      $match: {
-        project: new ObjectId(projectId),
-        status: TRANSACTION_STATUS.COMPLETED,
-        category: {
-          $in: [
-            TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
-            TRANSACTION_CATEGORY.EMPLOYEE_BONUS,
-          ],
-        },
-        employee: { $ne: null },
-      },
+  // Get all employee payments for this project (full details)
+  const employeePayments = await TransactionModel.find({
+    project: new ObjectId(projectId),
+    status: TRANSACTION_STATUS.COMPLETED,
+    category: {
+      $in: [
+        TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
+        TRANSACTION_CATEGORY.EMPLOYEE_BONUS,
+      ],
     },
-    {
-      $group: {
-        _id: "$employee",
-        totalPaid: { $sum: "$amount" },
-        paymentCount: { $sum: 1 },
-      },
-    },
-  ]);
+    employee: { $ne: null },
+  })
+    .populate("addedBy", "name")
+    .sort({ date: -1 })
+    .lean();
+
+  // Group payments by employee
+  const paymentsByEmployee = {};
+  employeePayments.forEach((payment) => {
+    const empId = payment.employee.toString();
+    if (!paymentsByEmployee[empId]) {
+      paymentsByEmployee[empId] = [];
+    }
+    paymentsByEmployee[empId].push({
+      id: payment._id,
+      amount: payment.amount,
+      currency: payment.currency || "EGP",
+      date: payment.date,
+      description: payment.description,
+      category: payment.category,
+      paymentMethod: payment.paymentMethod,
+      reference: payment.reference,
+      addedBy: payment.addedBy?.name,
+    });
+  });
 
   // Build breakdown - show original currency for each member
   const breakdown = members.map((member) => {
-    const payment = employeePayments.find(
-      (p) => p._id.toString() === member.employee._id.toString(),
-    );
-    const paid = payment?.totalPaid || 0;
+    const empId = member.employee._id.toString();
+    const payments = paymentsByEmployee[empId] || [];
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
 
     return {
       employee: {
@@ -256,10 +267,11 @@ export async function getProjectEmployeeBreakdownService(projectId) {
         position: member.employee.position?.name,
       },
       compensation: member.compensation,
-      currency: member.currency || "EGP", // Show original currency
-      paid,
-      remaining: member.compensation - paid,
-      paymentCount: payment?.paymentCount || 0,
+      currency: member.currency || "EGP",
+      paid: totalPaid,
+      remaining: member.compensation - totalPaid,
+      paymentCount: payments.length,
+      payments, // Include all payment details
     };
   });
 

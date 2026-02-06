@@ -29,9 +29,9 @@ router.get(
   financeController.getProjectFinancials,
 );
 
-// Project employee breakdown
+// Project employee payments breakdown
 router.get(
-  "/project/:projectId/employees",
+  "/project/:projectId/payments/employees",
   allowedTo("admin", "manager"),
   [param("projectId").isMongoId().withMessage("Invalid project ID")],
   validatorMiddleware,
@@ -40,7 +40,7 @@ router.get(
 
 // Project client payment history
 router.get(
-  "/project/:projectId/payments",
+  "/project/:projectId/payments/client",
   [param("projectId").isMongoId().withMessage("Invalid project ID")],
   validatorMiddleware,
   financeController.getClientPaymentHistory,
