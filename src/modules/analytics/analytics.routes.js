@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { getOverview, getStats } from "./analytics.controller.js";
 import { protect, allowedTo } from "../auth/auth.middleware.js";
-import { validatorMiddleware } from "../../shared/middlewares/validatorMiddleware.js";
 import { overviewValidator } from "./analytics.validator.js";
 import { currencyMiddleware } from "../../shared/middlewares/currencyMiddleware.js";
 
@@ -16,7 +15,6 @@ router.get(
   "/overview",
   allowedTo("admin", "manager"),
   overviewValidator,
-  validatorMiddleware,
   getOverview,
 );
 

@@ -86,35 +86,35 @@ export async function getProjectFinancialsService(projectId) {
     ]),
 
     // Client transactions (income) - full details
-    TransactionModel.find({
-      project: projectId,
-      type: TRANSACTION_TYPE.INCOME,
-      status: TRANSACTION_STATUS.COMPLETED,
-    })
-      .populate("client", "name companyName")
-      .populate("addedBy", "name email")
-      .sort({ date: -1 })
-      .lean(),
+    // TransactionModel.find({
+    //   project: projectId,
+    //   type: TRANSACTION_TYPE.INCOME,
+    //   status: TRANSACTION_STATUS.COMPLETED,
+    // })
+    //   .populate("client", "name companyName")
+    //   .populate("addedBy", "name email")
+    //   .sort({ date: -1 })
+    //   .lean(),
 
-    // Employee transactions - full details
-    TransactionModel.find({
-      project: projectId,
-      category: {
-        $in: [
-          TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
-          TRANSACTION_CATEGORY.EMPLOYEE_BONUS,
-        ],
-      },
-      status: TRANSACTION_STATUS.COMPLETED,
-    })
-      .populate("employee", "user")
-      .populate({
-        path: "employee",
-        populate: { path: "user", select: "name email" },
-      })
-      .populate("addedBy", "name email")
-      .sort({ date: -1 })
-      .lean(),
+    // // Employee transactions - full details
+    // TransactionModel.find({
+    //   project: projectId,
+    //   category: {
+    //     $in: [
+    //       TRANSACTION_CATEGORY.EMPLOYEE_SALARY,
+    //       TRANSACTION_CATEGORY.EMPLOYEE_BONUS,
+    //     ],
+    //   },
+    //   status: TRANSACTION_STATUS.COMPLETED,
+    // })
+    //   .populate("employee", "user")
+    //   .populate({
+    //     path: "employee",
+    //     populate: { path: "user", select: "name email" },
+    //   })
+    //   .populate("addedBy", "name email")
+    //   .sort({ date: -1 })
+    //   .lean(),
   ]);
 
   const totalCompensation = memberAgg[0]?.totalCompensation || 0;
@@ -126,38 +126,38 @@ export async function getProjectFinancialsService(projectId) {
   const totalPaidToEmployees = employeePayments[0]?.totalPaid || 0;
   const otherExpenses = totalExpenses - totalPaidToEmployees;
 
-  // Format transaction breakdowns - show ORIGINAL currency for each transaction
-  const formattedClientTransactions = clientTransactions.map((t) => ({
-    id: t._id,
-    amount: t.amount,
-    currency: t.currency || "EGP", // Show original currency
-    date: t.date,
-    description: t.description,
-    category: t.category,
-    paymentMethod: t.paymentMethod,
-    reference: t.reference,
-    client: {
-      id: t.client?._id,
-      name: t.client?.name || t.client?.companyName,
-    },
-    addedBy: t.addedBy?.name,
-  }));
+  // // Format transaction breakdowns - show ORIGINAL currency for each transaction
+  // const formattedClientTransactions = clientTransactions.map((t) => ({
+  //   id: t._id,
+  //   amount: t.amount,
+  //   currency: t.currency || "EGP", // Show original currency
+  //   date: t.date,
+  //   description: t.description,
+  //   category: t.category,
+  //   paymentMethod: t.paymentMethod,
+  //   reference: t.reference,
+  //   client: {
+  //     id: t.client?._id,
+  //     name: t.client?.name || t.client?.companyName,
+  //   },
+  //   addedBy: t.addedBy?.name,
+  // }));
 
-  const formattedEmployeeTransactions = employeeTransactions.map((t) => ({
-    id: t._id,
-    amount: t.amount,
-    currency: t.currency || "EGP", // Show original currency
-    date: t.date,
-    description: t.description,
-    category: t.category,
-    paymentMethod: t.paymentMethod,
-    employee: {
-      id: t.employee?._id,
-      name: t.employee?.user?.name,
-      email: t.employee?.user?.email,
-    },
-    addedBy: t.addedBy?.name,
-  }));
+  // const formattedEmployeeTransactions = employeeTransactions.map((t) => ({
+  //   id: t._id,
+  //   amount: t.amount,
+  //   currency: t.currency || "EGP", // Show original currency
+  //   date: t.date,
+  //   description: t.description,
+  //   category: t.category,
+  //   paymentMethod: t.paymentMethod,
+  //   employee: {
+  //     id: t.employee?._id,
+  //     name: t.employee?.user?.name,
+  //     email: t.employee?.user?.email,
+  //   },
+  //   addedBy: t.addedBy?.name,
+  // }));
 
   return {
     project: {
@@ -188,10 +188,10 @@ export async function getProjectFinancialsService(projectId) {
       grossProfit: project.budget - totalCompensation - otherExpenses,
       netProfitToDate: income - totalExpenses,
     },
-    transactions: {
-      clientTransactions: formattedClientTransactions,
-      employeeTransactions: formattedEmployeeTransactions,
-    },
+    // transactions: {
+    //   clientTransactions: formattedClientTransactions,
+    //   employeeTransactions: formattedEmployeeTransactions,
+    // },
   };
 }
 
@@ -341,79 +341,6 @@ export async function getClientPaymentHistoryService(projectId) {
         project.budget > 0
           ? Math.round((totalCollected / project.budget) * 100)
           : 0,
-    },
-  };
-}
-
-// ================== COMPANY-WIDE FINANCIALS ==================
-
-export async function getCompanyFinancialsService(query = {}) {
-  const { startDate, endDate } = query;
-
-  const dateFilter = {};
-  if (startDate) dateFilter.$gte = new Date(startDate);
-  if (endDate) dateFilter.$lte = new Date(endDate);
-
-  const matchStage = { status: TRANSACTION_STATUS.COMPLETED };
-  if (Object.keys(dateFilter).length > 0) {
-    matchStage.date = dateFilter;
-  }
-
-  const [transactionSummary, projectCount, activeProjects] = await Promise.all([
-    TransactionModel.aggregate([
-      { $match: matchStage },
-      {
-        $group: {
-          _id: "$type",
-          total: { $sum: "$amount" },
-          count: { $sum: 1 },
-        },
-      },
-    ]),
-    ProjectModel.countDocuments({ isActive: true }),
-    ProjectModel.aggregate([
-      { $match: { isActive: true } },
-      {
-        $group: {
-          _id: null,
-          totalBudget: { $sum: "$budget" },
-        },
-      },
-    ]),
-  ]);
-
-  const income =
-    transactionSummary.find((t) => t._id === TRANSACTION_TYPE.INCOME)?.total ||
-    0;
-  const expenses =
-    transactionSummary.find((t) => t._id === TRANSACTION_TYPE.EXPENSE)?.total ||
-    0;
-  const totalBudget = activeProjects[0]?.totalBudget || 0;
-
-  return {
-    period: {
-      startDate: startDate || "All time",
-      endDate: endDate || "Present",
-    },
-    summary: {
-      totalIncome: income,
-      totalExpenses: expenses,
-      netProfit: income - expenses,
-      profitMargin:
-        income > 0 ? Math.round(((income - expenses) / income) * 100) : 0,
-    },
-    projects: {
-      activeCount: projectCount,
-      totalBudget,
-      uncollected: totalBudget - income,
-    },
-    transactionCounts: {
-      income:
-        transactionSummary.find((t) => t._id === TRANSACTION_TYPE.INCOME)
-          ?.count || 0,
-      expense:
-        transactionSummary.find((t) => t._id === TRANSACTION_TYPE.EXPENSE)
-          ?.count || 0,
     },
   };
 }

@@ -8,7 +8,6 @@ import {
   updateProject,
 } from "./project.controller.js";
 import { protect, allowedTo } from "../auth/auth.middleware.js";
-import { validatorMiddleware } from "../../shared/middlewares/validatorMiddleware.js";
 import {
   createProjectValidator,
   updateProjectValidator,
@@ -24,35 +23,19 @@ router.use(protect);
 // Project CRUD
 router
   .route("/")
-  .get(listProjectsValidator, validatorMiddleware, getProjects)
-  .post(
-    allowedTo("admin", "manager"),
-    createProjectValidator,
-    validatorMiddleware,
-    createProject,
-  );
+  .get(listProjectsValidator, getProjects)
+  .post(allowedTo("admin", "manager"), createProjectValidator, createProject);
 
 router
   .route("/:id")
-  .get(projectIdValidator, validatorMiddleware, getProject)
-  .patch(
-    allowedTo("admin", "manager"),
-    updateProjectValidator,
-    validatorMiddleware,
-    updateProject,
-  )
-  .delete(
-    allowedTo("admin", "manager"),
-    projectIdValidator,
-    validatorMiddleware,
-    deleteProject,
-  );
+  .get(projectIdValidator, getProject)
+  .patch(allowedTo("admin", "manager"), updateProjectValidator, updateProject)
+  .delete(allowedTo("admin", "manager"), projectIdValidator, deleteProject);
 
 router.patch(
   "/:id/toggle-active",
   allowedTo("admin"),
   projectIdValidator,
-  validatorMiddleware,
   toggleProjectActive,
 );
 

@@ -6,6 +6,7 @@ import {
   PAYMENT_METHOD,
 } from "../../shared/constants/transaction.enums.js";
 import { CURRENCY_VALUES } from "../../shared/constants/currency.enums.js";
+import { validatorMiddleware } from "../../shared/middlewares/validatorMiddleware.js";
 
 export const createTransactionValidator = [
   body("type")
@@ -73,6 +74,8 @@ export const createTransactionValidator = [
     .isLength({ max: 1000 })
     .withMessage("Notes cannot exceed 1000 characters")
     .trim(),
+
+  validatorMiddleware,
 ];
 
 export const updateTransactionValidator = [
@@ -139,10 +142,14 @@ export const updateTransactionValidator = [
     .isLength({ max: 1000 })
     .withMessage("Notes cannot exceed 1000 characters")
     .trim(),
+
+  validatorMiddleware,
 ];
 
 export const transactionIdValidator = [
   param("id").isMongoId().withMessage("Invalid transaction ID"),
+
+  validatorMiddleware,
 ];
 
 export const listTransactionsValidator = [
@@ -192,6 +199,8 @@ export const listTransactionsValidator = [
     .optional()
     .isISO8601()
     .withMessage("Invalid end date format"),
+
+  validatorMiddleware,
 ];
 
 // Shorthand validators for common transactions
@@ -227,6 +236,8 @@ export const clientPaymentValidator = [
   body("paymentMethod").optional().isIn(Object.values(PAYMENT_METHOD)),
 
   body("reference").optional().trim(),
+
+  validatorMiddleware,
 ];
 
 export const employeePaymentValidator = [
@@ -266,6 +277,8 @@ export const employeePaymentValidator = [
     .optional()
     .isIn(Object.values(PAYMENT_METHOD))
     .withMessage("Invalid payment method value"),
+
+  validatorMiddleware,
 ];
 
 export const expenseValidator = [
@@ -308,4 +321,6 @@ export const expenseValidator = [
   body("paymentMethod").optional().isIn(Object.values(PAYMENT_METHOD)),
 
   body("receiptUrl").optional().isURL().withMessage("Invalid receipt URL"),
+
+  validatorMiddleware,
 ];

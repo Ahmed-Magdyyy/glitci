@@ -1,49 +1,31 @@
 import { Router } from "express";
-import { param, query } from "express-validator";
-import * as financeController from "./finance.controller.js";
+import {
+  getProjectFinancials,
+  getProjectEmployeeBreakdown,
+  getClientPaymentHistory,
+} from "./finance.controller.js";
 import { protect, allowedTo } from "../auth/auth.middleware.js";
-import { validatorMiddleware } from "../../shared/middlewares/validatorMiddleware.js";
+import { projectIdValidator } from "./finance.validator.js";
 
 const router = Router();
 
-// All routes require authentication
-router.use(protect);
-
-// Company-wide financials
-router.get(
-  "/company",
-  allowedTo("admin", "manager"),
-  [
-    query("startDate").optional().isISO8601().withMessage("Invalid start date"),
-    query("endDate").optional().isISO8601().withMessage("Invalid end date"),
-  ],
-  validatorMiddleware,
-  financeController.getCompanyFinancials,
-);
+router.use(protect, allowedTo("admin", "manager"));
 
 // Project-specific financials
-router.get(
-  "/project/:projectId",
-  [param("projectId").isMongoId().withMessage("Invalid project ID")],
-  validatorMiddleware,
-  financeController.getProjectFinancials,
-);
+router.get("/project/:projectId", projectIdValidator, getProjectFinancials);
 
 // Project employee payments breakdown
 router.get(
   "/project/:projectId/payments/employees",
-  allowedTo("admin", "manager"),
-  [param("projectId").isMongoId().withMessage("Invalid project ID")],
-  validatorMiddleware,
-  financeController.getProjectEmployeeBreakdown,
+  projectIdValidator,
+  getProjectEmployeeBreakdown,
 );
 
 // Project client payment history
 router.get(
   "/project/:projectId/payments/client",
-  [param("projectId").isMongoId().withMessage("Invalid project ID")],
-  validatorMiddleware,
-  financeController.getClientPaymentHistory,
+  projectIdValidator,
+  getClientPaymentHistory,
 );
 
 export default router;

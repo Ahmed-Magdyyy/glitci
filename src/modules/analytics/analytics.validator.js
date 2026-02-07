@@ -1,4 +1,5 @@
 import { query } from "express-validator";
+import { validatorMiddleware } from "../../shared/middlewares/validatorMiddleware.js";
 
 export const overviewValidator = [
   query("from")
@@ -9,4 +10,6 @@ export const overviewValidator = [
     .optional()
     .isISO8601()
     .withMessage("Invalid 'to' date format. Use ISO8601 (YYYY-MM-DD)"),
+
+  validatorMiddleware,
 ];

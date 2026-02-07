@@ -3,6 +3,7 @@ import {
   PROJECT_STATUS,
   PROJECT_PRIORITY,
 } from "../../shared/constants/project.enums.js";
+import { validatorMiddleware } from "../../shared/middlewares/validatorMiddleware.js";
 
 // Validators for Project
 export const createProjectValidator = [
@@ -83,6 +84,8 @@ export const createProjectValidator = [
     .withMessage("Compensation is required")
     .isFloat({ min: 0 })
     .withMessage("Compensation must be a positive number"),
+
+  validatorMiddleware,
 ];
 
 export const updateProjectValidator = [
@@ -162,10 +165,14 @@ export const updateProjectValidator = [
     .optional()
     .isBoolean()
     .withMessage("isActive must be a boolean"),
+
+  validatorMiddleware,
 ];
 
 export const projectIdValidator = [
   param("id").isMongoId().withMessage("Invalid project ID"),
+
+  validatorMiddleware,
 ];
 
 // Query validator for list operations
@@ -205,4 +212,6 @@ export const listProjectsValidator = [
     .optional()
     .isBoolean()
     .withMessage("isActive must be a boolean"),
+
+  validatorMiddleware,
 ];
