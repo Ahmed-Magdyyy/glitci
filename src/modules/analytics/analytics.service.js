@@ -14,19 +14,21 @@ import { DEFAULT_CURRENCY } from "../../shared/constants/currency.enums.js";
 const { ObjectId } = mongoose.Types;
 
 /**
- * Get default date range (start of month to today)
+ * Get default date range (start of month to end of today) in UTC
  */
 function getDefaultDateRange() {
   const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const to = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    23,
-    59,
-    59,
-    999,
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
   );
   return { from, to };
 }
@@ -42,11 +44,13 @@ function parseDateRange(query) {
 
   const defaults = getDefaultDateRange();
 
+  // When parsing from query string (ISO format like "2026-02-01"),
+  // new Date("2026-02-01") already parses as UTC midnight
   const from = query.from ? new Date(query.from) : defaults.from;
   const to = query.to ? new Date(query.to) : defaults.to;
 
-  // Set to end of day for 'to' date
-  to.setHours(23, 59, 59, 999);
+  // Set to end of day in UTC for 'to' date
+  to.setUTCHours(23, 59, 59, 999);
 
   return { from, to, isLifetime: false };
 }
@@ -72,7 +76,7 @@ export async function getOverviewService(
     recentProjects,
   ] = await Promise.all([
     // Financial summary for the period (using converted amounts)
-    // Group by type AND category to separate salaries from other expenses
+    // Group by type, category, and hasEmployee to separate salaries from other expenses
     TransactionModel.aggregate([
       {
         $match: {
@@ -82,7 +86,13 @@ export async function getOverviewService(
       },
       {
         $group: {
-          _id: { type: "$type", category: "$category" },
+          _id: {
+            type: "$type",
+            category: "$category",
+            hasEmployee: {
+              $cond: [{ $ifNull: ["$employee", false] }, true, false],
+            },
+          },
           total: {
             $sum: {
               $cond: [
@@ -190,13 +200,22 @@ export async function getOverviewService(
   let otherExpenses = 0;
 
   transactionSummary.forEach((entry) => {
-    if (entry._id.type === TRANSACTION_TYPE.INCOME) {
+    const { type, category, hasEmployee } = entry._id;
+
+    if (type === TRANSACTION_TYPE.INCOME) {
       totalIncome += entry.total;
-    } else if (entry._id.type === TRANSACTION_TYPE.EXPENSE) {
-      if (entry._id.category === TRANSACTION_CATEGORY.EMPLOYEE_SALARY) {
+    } else if (type === TRANSACTION_TYPE.EXPENSE) {
+      // Count as salary if:
+      // 1. Category is employee_salary or employee_bonus, OR
+      // 2. Has an employee linked (safety net for mis-categorized payments)
+      const isSalary =
+        category === TRANSACTION_CATEGORY.EMPLOYEE_SALARY ||
+        category === TRANSACTION_CATEGORY.EMPLOYEE_BONUS ||
+        hasEmployee;
+
+      if (isSalary) {
         totalSalaries += entry.total;
       } else {
-        // Bonuses, equipment, software, travel, etc. are all "other expenses"
         otherExpenses += entry.total;
       }
     }
