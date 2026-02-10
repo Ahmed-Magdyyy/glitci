@@ -19,52 +19,34 @@ import {
   employeePaymentValidator,
   expenseValidator,
 } from "./transaction.validator.js";
+import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
 
 const router = Router();
 
 // All routes require authentication
-router.use(protect);
+router.use(protect, allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER));
 
 // Shorthand endpoints (for convenience)
-router.post(
-  "/client-payment",
-  allowedTo("admin", "manager"),
-  clientPaymentValidator,
-  createClientPayment,
-);
+router.post("/client-payment", clientPaymentValidator, createClientPayment);
 
 router.post(
   "/employee-payment",
-  allowedTo("admin", "manager"),
   employeePaymentValidator,
   createEmployeePayment,
 );
 
-router.post(
-  "/expense",
-  allowedTo("admin", "manager"),
-  expenseValidator,
-  createExpense,
-);
+router.post("/expense", expenseValidator, createExpense);
 
 // Generic CRUD
 router
   .route("/")
   .get(listTransactionsValidator, getTransactions)
-  .post(
-    allowedTo("admin", "manager"),
-    createTransactionValidator,
-    createTransaction,
-  );
+  .post(createTransactionValidator, createTransaction);
 
 router
   .route("/:id")
   .get(transactionIdValidator, getTransaction)
-  .patch(
-    allowedTo("admin", "manager"),
-    updateTransactionValidator,
-    updateTransaction,
-  )
-  .delete(allowedTo("admin"), transactionIdValidator, deleteTransaction);
+  .patch(updateTransactionValidator, updateTransaction)
+  .delete(transactionIdValidator, deleteTransaction);
 
 export default router;

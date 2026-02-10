@@ -22,7 +22,7 @@ export const createUserValidator = [
 
   check("role")
     .optional()
-    .isIn([USER_ROLES.EMPLOYEE, USER_ROLES.MANAGER, USER_ROLES.MODERATOR])
+    .isIn([USER_ROLES.EMPLOYEE, USER_ROLES.MANAGER, USER_ROLES.OPERATION])
     .withMessage("Invalid role"),
 
   validatorMiddleware,
@@ -42,7 +42,7 @@ export const updateUserValidator = [
 
   check("role")
     .optional()
-    .isIn([USER_ROLES.EMPLOYEE, USER_ROLES.MANAGER, USER_ROLES.MODERATOR])
+    .isIn([USER_ROLES.EMPLOYEE, USER_ROLES.MANAGER, USER_ROLES.OPERATION])
     .withMessage("Invalid role"),
 
   check("isActive")

@@ -26,18 +26,23 @@ router.get("/", getServices);
 // POST /services - Create service (Admin only)
 router.post(
   "/",
-  allowedTo(USER_ROLES.ADMIN),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   createServiceValidator,
   createService,
 );
 
 // GET /services/:id - Get single service
-router.get("/:id", serviceIdValidator, getService);
+router.get(
+  "/:id",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
+  serviceIdValidator,
+  getService,
+);
 
 // PATCH /services/:id - Update service (Admin only)
 router.patch(
   "/:id",
-  allowedTo(USER_ROLES.ADMIN),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   updateServiceValidator,
   updateService,
 );
@@ -45,16 +50,16 @@ router.patch(
 // PATCH /services/:id/toggle-active - Toggle service status (Admin only)
 router.patch(
   "/:id/toggle-active",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   serviceIdValidator,
-  allowedTo(USER_ROLES.ADMIN),
   toggleServiceActive,
 );
 
 // DELETE /services/:id - Delete service permanently (Admin only)
 router.delete(
   "/:id",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   serviceIdValidator,
-  allowedTo(USER_ROLES.ADMIN),
   deleteService,
 );
 

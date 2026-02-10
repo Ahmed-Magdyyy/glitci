@@ -33,12 +33,12 @@ router.patch(
   protect,
   uploadSingleImage("image"),
   updateMeValidator,
-  updateMe
+  updateMe,
 );
 router.delete("/me", protect, deleteMe);
 
 // ----- Admin Routes -----
-router.use(protect, allowedTo(USER_ROLES.ADMIN));
+router.use(protect, allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION));
 
 router.route("/").get(getUsers).post(createUserValidator, createUser);
 

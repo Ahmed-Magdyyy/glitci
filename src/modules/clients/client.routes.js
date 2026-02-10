@@ -22,31 +22,40 @@ const router = Router();
 router.use(protect);
 
 // GET /clients - List clients (isActive=true by default)
-// Query params: name, companyName, industry, isActive, page, limit, sort
 router.get("/", getClients);
 
 // POST /clients - Create client
-router.post("/", createClientValidator, createClient);
+router.post(
+  "/",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
+  createClientValidator,
+  createClient,
+);
 
 // GET /clients/:id - Get single client
 router.get("/:id", clientIdValidator, getClient);
 
 // PATCH /clients/:id - Update client (all fields except isActive)
-router.patch("/:id", updateClientValidator, updateClient);
+router.patch(
+  "/:id",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
+  updateClientValidator,
+  updateClient,
+);
 
 // PATCH /clients/:id/toggle-active - Toggle client active status (Admin only)
 router.patch(
   "/:id/toggle-active",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
   clientIdValidator,
-  allowedTo(USER_ROLES.ADMIN),
   toggleClientActive,
 );
 
 // DELETE /clients/:id - Delete client permanently (Admin only)
 router.delete(
   "/:id",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
   clientIdValidator,
-  allowedTo(USER_ROLES.ADMIN),
   deleteClient,
 );
 

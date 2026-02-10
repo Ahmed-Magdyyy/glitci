@@ -7,7 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
 
-import { dbConnection } from "./src/shared/database/connection.js";
+import { dbConnection } from "./src/config/dbConnection.js";
 import { globalError } from "./src/shared/middlewares/errorMiddleware.js";
 import { ApiError } from "./src/shared/utils/ApiError.js";
 import { mountRoutes } from "./src/app/routes.js";

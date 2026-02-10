@@ -14,27 +14,39 @@ import {
   projectIdValidator,
   listProjectsValidator,
 } from "./project.validator.js";
+import { USER_ROLES } from "../../shared/constants/userRoles.enums.js";
 
 const router = Router();
 
-// All routes require authentication
 router.use(protect);
 
 // Project CRUD
 router
   .route("/")
   .get(listProjectsValidator, getProjects)
-  .post(allowedTo("admin", "manager"), createProjectValidator, createProject);
+  .post(
+    allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
+    createProjectValidator,
+    createProject,
+  );
 
 router
   .route("/:id")
   .get(projectIdValidator, getProject)
-  .patch(allowedTo("admin", "manager"), updateProjectValidator, updateProject)
-  .delete(allowedTo("admin", "manager"), projectIdValidator, deleteProject);
+  .patch(
+    allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
+    updateProjectValidator,
+    updateProject,
+  )
+  .delete(
+    allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
+    projectIdValidator,
+    deleteProject,
+  );
 
 router.patch(
   "/:id/toggle-active",
-  allowedTo("admin"),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   projectIdValidator,
   toggleProjectActive,
 );

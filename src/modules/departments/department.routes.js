@@ -27,18 +27,23 @@ router.get("/", getDepartments);
 // POST /departments - Create department (Admin only)
 router.post(
   "/",
-  allowedTo(USER_ROLES.ADMIN),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   createDepartmentValidator,
   createDepartment,
 );
 
 // GET /departments/:id - Get single department
-router.get("/:id", departmentIdValidator, getDepartment);
+router.get(
+  "/:id",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
+  departmentIdValidator,
+  getDepartment,
+);
 
 // PATCH /departments/:id - Update department (Admin only)
 router.patch(
   "/:id",
-  allowedTo(USER_ROLES.ADMIN),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   updateDepartmentValidator,
   updateDepartment,
 );
@@ -46,16 +51,16 @@ router.patch(
 // PATCH /departments/:id/toggle-active - Toggle department status (Admin only)
 router.patch(
   "/:id/toggle-active",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   departmentIdValidator,
-  allowedTo(USER_ROLES.ADMIN),
   toggleDepartmentActive,
 );
 
 // DELETE /departments/:id - Delete department permanently (Admin only)
 router.delete(
   "/:id",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.OPERATION),
   departmentIdValidator,
-  allowedTo(USER_ROLES.ADMIN),
   deleteDepartment,
 );
 

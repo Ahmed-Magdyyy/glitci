@@ -23,10 +23,10 @@ router.use(protect);
 // GET /employees - List employees (isActive=true by default)
 router.get("/", getEmployees);
 
-// POST /employees - Create employee (Admin only)
+// POST /employees - Create employee
 router.post(
   "/",
-  allowedTo(USER_ROLES.ADMIN),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
   createEmployeeValidator,
   createEmployee,
 );
@@ -34,27 +34,27 @@ router.post(
 // GET /employees/:id - Get single employee
 router.get("/:id", employeeIdValidator, getEmployee);
 
-// PATCH /employees/:id - Update employee (Admin only)
+// PATCH /employees/:id - Update employee
 router.patch(
   "/:id",
-  allowedTo(USER_ROLES.ADMIN),
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
   updateEmployeeValidator,
   updateEmployee,
 );
 
-// PATCH /employees/:id/toggle-active - Toggle employee status (Admin only)
+// PATCH /employees/:id/toggle-active - Toggle employee status
 router.patch(
   "/:id/toggle-active",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
   employeeIdValidator,
-  allowedTo(USER_ROLES.ADMIN),
   toggleEmployeeActive,
 );
 
-// DELETE /employees/:id - Delete employee permanently (Admin only)
+// DELETE /employees/:id - Delete employee permanently
 router.delete(
   "/:id",
+  allowedTo(USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.OPERATION),
   employeeIdValidator,
-  allowedTo(USER_ROLES.ADMIN),
   deleteEmployee,
 );
 
