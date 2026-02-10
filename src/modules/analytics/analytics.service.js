@@ -6,6 +6,7 @@ import { EmployeeModel } from "../employees/employee.model.js";
 import { DepartmentModel } from "../departments/department.model.js";
 import {
   TRANSACTION_TYPE,
+  TRANSACTION_CATEGORY,
   TRANSACTION_STATUS,
 } from "../../shared/constants/transaction.enums.js";
 import { DEFAULT_CURRENCY } from "../../shared/constants/currency.enums.js";
@@ -34,6 +35,11 @@ function getDefaultDateRange() {
  * Parse date range from query or use defaults
  */
 function parseDateRange(query) {
+  // Lifetime mode: no date filtering
+  if (query.lifetime === "true" || query.lifetime === true) {
+    return { from: null, to: null, isLifetime: true };
+  }
+
   const defaults = getDefaultDateRange();
 
   const from = query.from ? new Date(query.from) : defaults.from;
@@ -42,7 +48,7 @@ function parseDateRange(query) {
   // Set to end of day for 'to' date
   to.setHours(23, 59, 59, 999);
 
-  return { from, to };
+  return { from, to, isLifetime: false };
 }
 
 // ================== OVERVIEW (TIME-BASED DATA) ==================
@@ -51,13 +57,13 @@ export async function getOverviewService(
   query = {},
   userCurrency = DEFAULT_CURRENCY,
 ) {
-  const { from, to } = parseDateRange(query);
+  const { from, to, isLifetime } = parseDateRange(query);
 
   // Build the amount field path based on user currency
   const amountField = `$amountConverted.${userCurrency}`;
   const budgetField = `$budgetConverted.${userCurrency}`;
 
-  const dateFilter = { $gte: from, $lte: to };
+  const dateFilter = isLifetime ? {} : { date: { $gte: from, $lte: to } };
 
   const [
     transactionSummary,
@@ -66,17 +72,17 @@ export async function getOverviewService(
     recentProjects,
   ] = await Promise.all([
     // Financial summary for the period (using converted amounts)
+    // Group by type AND category to separate salaries from other expenses
     TransactionModel.aggregate([
       {
         $match: {
-          date: dateFilter,
+          ...dateFilter,
           status: TRANSACTION_STATUS.COMPLETED,
         },
       },
       {
         $group: {
-          _id: "$type",
-          // Use converted amount if > 0, fallback to raw amount for legacy data
+          _id: { type: "$type", category: "$category" },
           total: {
             $sum: {
               $cond: [
@@ -95,7 +101,7 @@ export async function getOverviewService(
     TransactionModel.aggregate([
       {
         $match: {
-          date: dateFilter,
+          ...dateFilter,
           type: TRANSACTION_TYPE.INCOME,
           status: TRANSACTION_STATUS.COMPLETED,
         },
@@ -178,13 +184,28 @@ export async function getOverviewService(
       .lean(),
   ]);
 
-  // Parse transaction totals
-  const totalIncome =
-    transactionSummary.find((t) => t._id === TRANSACTION_TYPE.INCOME)?.total ||
-    0;
-  const totalExpenses =
-    transactionSummary.find((t) => t._id === TRANSACTION_TYPE.EXPENSE)?.total ||
-    0;
+  // Parse transaction totals by type and category
+  let totalIncome = 0;
+  let totalSalaries = 0;
+  let otherExpenses = 0;
+
+  transactionSummary.forEach((entry) => {
+    if (entry._id.type === TRANSACTION_TYPE.INCOME) {
+      totalIncome += entry.total;
+    } else if (entry._id.type === TRANSACTION_TYPE.EXPENSE) {
+      if (entry._id.category === TRANSACTION_CATEGORY.EMPLOYEE_SALARY) {
+        totalSalaries += entry.total;
+      } else {
+        // Bonuses, equipment, software, travel, etc. are all "other expenses"
+        otherExpenses += entry.total;
+      }
+    }
+  });
+
+  const totalExpenses = totalSalaries + otherExpenses;
+  const netProfit = totalIncome - totalExpenses;
+  const profitMargin =
+    totalIncome > 0 ? Math.round((netProfit / totalIncome) * 100) : 0;
 
   // Format income by department for chart
   const quarterlyByDept = {};
@@ -215,13 +236,14 @@ export async function getOverviewService(
   }));
 
   return {
-    period: { from, to },
+    period: isLifetime ? { lifetime: true } : { from, to },
     currency: userCurrency,
     financials: {
-      totalRevenue: Math.round(totalIncome),
-      totalEarning: Math.round(totalIncome),
-      totalSpending: Math.round(totalExpenses),
-      netProfit: Math.round(totalIncome - totalExpenses),
+      totalIncome: Math.round(totalIncome),
+      totalSalaries: Math.round(totalSalaries),
+      otherExpenses: Math.round(otherExpenses),
+      netProfit: Math.round(netProfit),
+      profitMargin,
     },
     charts: {
       growthTrend,
